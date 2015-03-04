@@ -23,12 +23,12 @@
      
       cells←size⍴15 ⍝ all cells start with 4 walls
      
-      visited←,⊂?size ⍝ random starting cell (remove it from list of cells not traversed)
+      visited←,⊂?size ⍝ random starting cell
      
-      :If animate           ⍝ if we are animating...
+      :If animate             ⍝ if we are animating...
           pic←1 draw cells    ⍝ draw the current maze
           ⎕ED&'pic'           ⍝ and display it in the editor in a separate thread
-          delay←4×÷×/size
+          delay←4×÷×/size     ⍝ set the delay so that larger mazes render faster
       :EndIf
      
       :While 15∊cells       ⍝ while we still have cells to examine
