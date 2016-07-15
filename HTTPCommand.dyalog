@@ -37,7 +37,7 @@
     ∇ make1 args
       :Access public
       :Implements constructor
-      ⍝ args - [URL Params Headers Command Cert SSLFlags Priority]
+      ⍝ args - [Command URL Params Headers Cert SSLFlags Priority]
       args←eis args
       Command URL Params Headers Cert SSLFlags Priority←7↑args,(⍴args)↓Command URL Params Headers Cert SSLFlags Priority
     ∇
