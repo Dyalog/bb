@@ -122,7 +122,7 @@
 ⍝ for (pt = 1; pt<pts.length; pt++){ctx.lineTo(pts[pt][0],pts[pt][1]);}
 ⍝ ctx.stroke();
           r←('canvas id="myCanvas" width="',(⍕size[2]),'" height="',(⍕size[1]),'"')enc'Your browser does not support the HTML5 canvas tag.'
-          r,←script enc script
+          r,←'script' enc script
       :Else
           size←20+⌈size
           r←'<polygon style="stroke:red;stroke-width:1;fill-opacity:0;" points="',(1↓∊{' ',(⍕⍺),',',(⍕⍵)}/¨↓points+5),'"/>'
