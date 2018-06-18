@@ -2,10 +2,12 @@
 ⍝ This is a solver for Move, a game for iOS and Android by Nitako
 ⍝ http://www.nitako.com/wp/blog/projects/move/
 
-    ∇ moves←board solve start;history;solution;queue;next;keep;mask
+    ∇ moves←board solve start;history;solution;queue;next;keep;mask 
+    ⍝ board is an integer representation of the board where 0 = blank (non-colored) cell, ¯1 = blocked cell, n = cell of color n
+    ⍝ start is the board representation of the ball starting positions where n corresponds to the color in board
     ⍝ queue is the list of board positions to examine
     ⍝ history is the list of board positions we've looked at
-      (board start)←{2=≢⍴⍵:⍵ ⋄ ⍵{⍺{⍵⍴(×/⍵)↑⍺}2⍴⌈⍵*0.5}≢,⍵}¨board start
+      (board start)←{2=≢⍴⍵:⍵ ⋄ ⍵{⍺{⍵⍴(×/⍵)↑⍺}2⍴⌈⍵*0.5}≢,⍵}¨{⍵↑¨⍨⌈/≢¨⍵}board start
       queue←history←,⊂start
       solution←⊂0⌈board
       moves←0

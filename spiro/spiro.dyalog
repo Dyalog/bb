@@ -1,4 +1,4 @@
-﻿:Namespace spiro                                    
+﻿:Namespace spiro
     (⎕IO ⎕ML ⎕WX)←1 1 3
 
     ∇ points←spiro Rrp;degrees;turns;theta
@@ -16,7 +16,11 @@
       points←theta yx Rrp ⍝ do it
     ∇
 
-    ∇ animate;Rrp;size;origin;keypress;xlate;animate;draw;degrees;turns;theta;points;path;lcc;count;x;f;timer
+    ∇ run
+      animate&0
+    ∇
+
+    ∇ animate dummy;Rrp;size;origin;keypress;xlate;animate;draw;degrees;turns;theta;points;path;lcc;count;x;f;timer
       ⍝ simple Spirograph
       ⍝ inspired by:
       ⍝ http://www.personal.psu.edu/dpl14/java/parametricequations/spirograph/
@@ -26,7 +30,7 @@
       ⍝ p is the length of the "drawing stick"
       size←2⍴600 ⍝ drawing area size
       origin←⌊0.5×size
-      f←⎕NEW'Form'(('Coord' 'Pixel')('Size'(size+30 0))('Caption' 'APL Spirograph')('AutoConf' 0)('Sizeable' 0))
+      f←⎕NEW'Form'(('Coord' 'ScaledPixel')('Size'(size+30 0))('Caption' 'APL Spirograph')('AutoConf' 0)('Sizeable' 0))
       f.edit←{('Posn'(##.size[1],⍺))('Size'(20 40))('FieldType' 'Numeric')('Value'⍵)}
       f.label←{('Posn'(##.size[1],⍺))('Size'(20 40))('Caption'(⍵,': '))('Justify' 'right')}
       f.(R←⎕NEW'Edit'(75 edit 99))
