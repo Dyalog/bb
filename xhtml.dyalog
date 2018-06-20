@@ -13,7 +13,7 @@
           ∊((⊂'&amp;')@(⍺(⍵ last)'&'))⍵
       }
       fixAttribute←{
-          inds←¯2↑⍸' >'∊⍨⍺↑⍵
+          inds←¯2↑⍸' />'∊⍨⍺↑⍵
           ∊((⊂2⌽'"',⍵[inds[2]],'="',⍵[inds[1]+⍳¯1+-/⌽inds])@(2⊃inds))⍵
       }
       inScript←{ ⍝ did the exception occur inside a script?
