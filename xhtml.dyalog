@@ -34,12 +34,12 @@
           e←⍺+⌊/(⍺↓⍵)⍳' >'
           ∊((⊂'"'∘,)¨@(⍺,e))⍵
       }
-      fixComment←{
-          t←+/∧\'-'=⍺↓⍵
-          l←+/∧\'-'=⌽⍺↑⍵
-          '!'=⍵[⍺-l]:('='@((⍺-l-2)+⍳t+l-2))⍵
-          '>'=⍵[1+⍺+t]:('='@((⍺-l)+⍳t+l-2))⍵
-          ∘∘∘
+      fixComment←{   ⍝ '--' inside of comments are a no-no,so replace them with '==' 
+          t←+/∧\'-'=⍺↓⍵   ⍝ trailing -
+          l←+/∧\'-'=⌽⍺↑⍵  ⍝ leading -
+          '!'=⍵[⍺-l]:('='@((⍺-l-2)+⍳t+l-2))⍵ ⍝ preserve beginning of comment
+          '>'=⍵[1+⍺+t]:('='@((⍺-l)+⍳t+l-2))⍵ ⍝ preserve end of comment
+          ('='@((⍺-l)+⍳t+l))⍵ ⍝ otherwise replace them all
       }
       fixAttributeCharacter←{
           pos char←⍺
