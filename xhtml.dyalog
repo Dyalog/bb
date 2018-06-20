@@ -1,6 +1,8 @@
 ﻿:Namespace xhtml
 
-    ∇ r←HTMLtoXHTML html;lco;lc;beginsWith;last;fixAmpersand;fixAttribute;inScript;fixScript;quoteAttr;closes;inds;noclose;msg;pos;scriptInsert;next;fixComment
+    ⎕IO←⎕ML←1
+
+    ∇ r←HTMLtoXHTML html;lco;lc;beginsWith;last;fixAmpersand;fixAttribute;inScript;fixScript;quoteAttr;closes;inds;noclose;msg;pos;scriptInsert;next;fixComment;char;fixAttributeCharacter;makeEntity;fixBadTag
     ⍝ attempts to covert a character vector containing HTML to matrix form of XHTML
       lco←{(lc ⍺)⍺⍺(lc ⍵)}
       lc←0∘(819⌶)
@@ -11,8 +13,8 @@
           ∊((⊂'&amp;')@(⍺(⍵ last)'&'))⍵
       }
       fixAttribute←{
-          inds←¯2↑⍸' '=⍺↑⍵
-          ∊((⊂2⌽'" ="',⍵[inds[1]+⍳¯1+-/⌽inds])@(2⊃inds))⍵
+          inds←¯2↑⍸' >'∊⍨⍺↑⍵
+          ∊((⊂2⌽'"',⍵[inds[2]],'="',⍵[inds[1]+⍳¯1+-/⌽inds])@(2⊃inds))⍵
       }
       inScript←{ ⍝ did the exception occur inside a script?
           b←⍸'<script'⍷⍵
@@ -39,8 +41,19 @@
           '>'=⍵[1+⍺+t]:('='@((⍺-l)+⍳t+l-2))⍵
           ∘∘∘
       }
-     
-⍝      html←enlist split html
+      fixAttributeCharacter←{
+          pos char←⍺
+          char≠⍵[pos]:∘∘∘
+          ∊((⊂makeEntity char)@pos)⍵
+      }
+      makeEntity←{
+          ¯4↓3↓⎕XML 1 3⍴0 'z'⍵
+      }
+      fixBadTag←{
+          '<'≠⍵[⍺-1]:∘∘∘ ⍝ expected '<' at this location
+          ∊((⊂'&lt;')@(⍺-1))⍵
+      }
+
       closes←⍸'>'=html
       noclose←'<',¨'area ' 'base ' 'basefont ' 'br>' 'col ' 'frame ' 'hr ' 'hr>' 'img ' 'input ' 'isindex ' 'link ' 'meta ' 'param ' ⍝ elements with no closing tag
       inds←closes[⍸∨⌿<\(⍸⊃∨/(noclose(⍷lco)¨⊂html))∘.<closes]
@@ -66,6 +79,13 @@
               →Try
           :ElseIf msg beginsWith'Invalid ''--'' in comment'
               html←pos fixComment html
+              →Try
+          :ElseIf (4↓msg)beginsWith'not allowed in attribute'
+              char←2⊃msg ⍝ the offending character
+              html←(pos char)fixAttributeCharacter html
+              →Try
+          :ElseIf msg beginsWith'Invalid tag name'
+              html←pos fixBadTag html
               →Try
           :Else
               ∘∘∘ ⍝ unhandled exception
@@ -126,11 +146,19 @@
      exit:
     ∇
 
+      family←{ ⍝ ⎕XML-mat ((up dn)Family) mask
+          steps←-|⍺⍺                         ⍝ steps up and down to look
+          tree←↑1↑¨⍨-1+⊣/⍺                   ⍝ Boolean drawing of structure
+          ids←↓(+⍀tree)×⌽∨\⌽tree             ⍝ unique level-length ids
+          pad←0↑⍨⌊/steps                     ⍝ padding to keep top levels unique
+          ⍸¨↓⊃∘.≡/⍵ 1/¨steps↓¨¨⊂ids(pad,~)¨0 ⍝ pad, trim, mask, compare, where
+      }
+
       Xsel←{
       ⍝ ⍺ - xhtml
       ⍝ ⍵ - Boolean of selected nodes (result from Xfind)
       ⍝ ← - nodes+descendents
-          ⊃⍪/{⍵⌿⍨∧\1,1↓⍵[;1]>⊃⍵[;1]}¨⍵⊂[1]⍺
+          {⍵⌿⍨∧\1,1↓⍵[;1]>⊃⍵[;1]}¨((1@(⍸⍵))(≢⍺)⍴0)⊂[1]⍺
       }
 
 :EndNamespace
