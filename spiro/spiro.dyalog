@@ -105,7 +105,7 @@
       {}⎕DQ'f' ⍝ display it
     ∇
 
-    ∇ r←{type}html points;enc;min;size;script
+    ∇ r←{type}html points;enc;min;size;script;head;t;animate
   ⍝ return the HTML to draw a spirograph
   ⍝ points is the YX points returned by the spiro function
   ⍝ type - 0=svg, 1=HTML5 canvas
@@ -113,26 +113,47 @@
       points←points-[2]min←⌊⌿points
       size←(⌈⌿-⌊⌿)points
       enc←{'<',⍺,'>',(∊⍵),'</',(⍺⍴⍨¯1+⍺⍳' '),'>'}           ⍝ enclose an HTML element
-      :If {6::⍵ ⋄ type}0
-          size+←20
+     
+      r←'style'enc ScriptFollows
+⍝ #spiro{display:block;margin-left:auto;margin-right:auto;width:50%;}
+     
+      :If {6::⍵ ⋄ ⊃type}0  ⍝ canvas
+          animate←2⊃2↑type
+          size←20+⌈size
+     
           script←'var pts = [',(1↓∊',',¨{{'[',⍺,',',⍵,']'}/⍕¨⍵}¨↓points+10),'];'
           script,←ScriptFollows
-⍝ var c = document.getElementById("myCanvas");
+⍝ var c = document.getElementById("spiro");
 ⍝ var ctx = c.getContext("2d");
-⍝ ctx.strokeStyle = "red";
+⍝ ctx.strokeStyle = "blue";
 ⍝ ctx.beginPath();
 ⍝ ctx.moveTo(pts[0][0],pts[0][1]);
-⍝ var pt;
-⍝ for (pt = 1; pt<pts.length; pt++){ctx.lineTo(pts[pt][0],pts[pt][1]);}
+⍝ var pt = 1;
+          :If animate
+              script,←ScriptFollows
+⍝ function draw(){
+⍝   lim = Math.min(pts.length,pt+100);
+⍝   for (; pt<lim; pt++){
+⍝     ctx.lineTo(pts[pt][0],pts[pt][1]);
+⍝     ctx.stroke();
+⍝   };
+⍝ };
+⍝ setInterval(draw,100);
+          :Else
+              script,←ScriptFollows
+⍝ for(;pt<pts.length;pt++){ctx.lineTo(pts[pt][0],pts[pt][1]);};
 ⍝ ctx.stroke();
-          r←('canvas id="myCanvas" width="',(⍕size[2]),'" height="',(⍕size[1]),'"')enc'Your browser does not support the HTML5 canvas tag.'
-          r,←'script' enc script
-      :Else
+          :EndIf
+          r,←('canvas id="spiro" width="',(⍕size[2]),'" height="',(⍕size[1]),'"')enc'Your browser does not support the HTML5 canvas tag.'
+          r,←'script'enc script
+     
+      :Else   ⍝ SVG
           size←20+⌈size
-          r←'<polygon style="stroke:red;stroke-width:1;fill-opacity:0;" points="',(1↓∊{' ',(⍕⍺),',',(⍕⍵)}/¨↓points+5),'"/>'
-          r←('svg width="',(⍕size[2]),'" height="',(⍕size[1]),'"')enc r
+          t←'<polygon style="stroke:blue;stroke-width:1;fill-opacity:0;" points="',(1↓∊{' ',(⍕⍺),',',(⍕⍵)}/¨↓points+5),'"/>'
+          r,←('svg id="spiro" viewBox="0 0 ',(⍕size),'"')enc t
       :EndIf
-      r←'<!DOCTYPE html>','html'enc'body'enc r
+      head←'<meta name="viewport" content="width=device.width, initial-scale=1.0"/>'
+      r←'<!DOCTYPE html>','html'enc('head'enc head),'body'enc r
     ∇
 
     dtlb←{⍵{((∨\⍵)∧⌽∨\⌽⍵)/⍺}' '≠⍵} ⍝ delete leading and trailing blanks
