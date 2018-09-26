@@ -153,8 +153,8 @@
       table[;1]←massage¨table[;1]
       table←((⊂'null')@(⎕NULL∘≡¨))table
       refs←r⍎¨(1↓table[;1]),¨⊂'←⎕NS'''''
-      names←'(',(⍕1↓table[1;]),')'
-      refs(names set)¨↓[2]1 1↓table
+      names←'(',(⍕table[1;]),')'
+      refs(names set)¨↓[2]1 0↓table
     ∇
 
     ∇ r←exportJSON ns
@@ -162,6 +162,10 @@
       r.Timestamp←{(⍕⊃⍵),∊'--@::',¨'ZI2'∘⎕FMT¨1↓6↑⍵}⎕TS
       r.Data←ns
       r←⎕JSON r
+    ∇
+
+    ∇ r←filterNulls tab
+      r←tab⌿⍨~∨/(tab∊⊂'null')∨tab∊⎕NULL
     ∇
 
     :Class HttpCommand
