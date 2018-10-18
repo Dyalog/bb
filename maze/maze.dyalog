@@ -4,9 +4,11 @@
 ⍝ Dec2016 update
 ⍝ - added solvers section with one maze solver
 ⍝ - added show solution toggle button on HTML output
-⍝ - dealt with 1×1 maze 
+⍝ - dealt with 1×1 maze
+⍝ Oct2018
+⍝ - more compact way to filter valid neighbors 
 
-    ∇ cells←{animate}maze size;valid;neighbors;reagan;visited;pic;current;n;choices;next;left
+    ∇ cells←{animate}maze size;neighbors;reagan;visited;pic;current;n;choices;next;left
      ⍝ Maze drawer - modeled after http://weblog.jamisbuck.org/2011/1/27/maze-generation-growing-tree-algorithm
      ⍝ BPB - Dec2014
      ⍝ size    - size of the maze in rows/cols
@@ -20,8 +22,7 @@
       size←2⍴size  ⍝ set size to square if singleton supplied as argument
       animate←{6::⍵ ⋄ animate}0 ⍝ default = no animation
      
-      valid←{{⍵/⍨⍵≢¨⊂⍬}size∘{(0∊⍵)⍱⍵∨.>⍺:⍵ ⋄ ⍬}¨⍵} ⍝ determine if a maze coordinate is valid
-      neighbors←valid¨↓(left←⍳size)∘.+,1 ¯1∘.×1 0⌽¨⊂1 0 ⍝ calculate neighbors for each cell
+      neighbors←{(⊂,⍵)∩¨↓⍵∘.+,1 ¯1∘.×1 0⌽¨⊂1 0}left←⍳size ⍝ calculate valid neighbors for each cell
      
       reagan←{{⍵[2]=0:{(1=⍵)⌽4 1}⍵[1] ⋄ {(1=⍵)⌽2 8}⍵[2]}⍺-⍵}  ⍝ Mr. Gorbachev tear down this wall
      
