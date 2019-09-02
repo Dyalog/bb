@@ -1,0 +1,38 @@
+﻿)clear
+
+]load /dyalog17/htmlrenderer/MsgBox
+
+mb←⎕NEW MsgBox
+mb.Caption←'Just thought you should know...'
+mb.Text←'The airspeed of an unladen European swallow is approximately 11 meters per second.'
+mb.Style←'info'  
+mb.Btns←'Wow, thanks!'  'Who cares?'
+mb.Run      
+
+)clear
+
+]load /git/MiServer/Loadable/WC2
+
+WC2.Init ''
+
+]load /dyalog17/htmlrenderer/InputDemo*
+
+InputDemo
+
+
+)clear
+
+]load /git/MiServer/Loadable/WC2
+
+WC2.Init '' '/dyalog17/htmlrenderer/cube/'
+
+]load /dyalog17/htmlrenderer/cube/cube
+
+)ed cube
+
+cube                                
+
+)ed file:///dyalog17/htmlrenderer/cube/cube.css
+
+)ed file:///dyalog17/htmlrenderer/cube/cube.js
+
