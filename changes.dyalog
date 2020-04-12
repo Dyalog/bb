@@ -5,11 +5,14 @@
  ⍝ N.B. - requires HttpCommand
 
      0=⎕NC'#.HttpCommand':('Please',(⎕UCS 13),'      ]load HttpCommand')⎕SIGNAL 6
+     creds←{~∨/m←'@'=⍵:'' ⋄ ⌽{⍵/⍨∧\⍵≠'/'}(⌽⍵)/⍨∨\⌽m}⍵
+     inject←{i←⎕IO+⍸<\'//'⍷⍵ ⋄ (i↑⍵),⍺,i↓⍵}
+     url←((creds ⍵)⎕R'')⍵
      get←{⎕JSON(HttpCommand.Get ⍵).Data}
-     changed←{(get ⍵).(commit.committer.(name date),⊂↑files.(status filename))}
+     changed←{(get ⍵).(commit.committer.(name date),(⊂↑files.(status filename)),⊂↑(⎕UCS 10)(≠⊆⊢)commit.message)}
      ⍺←1 ⍝ default to last commit
-     repo←('Dyalog/'/⍨~'/'∊⍵),⍵
-     commits←⍺↑get'https://api.github.com/repos/',repo,'/commits'
-     urls←commits.url
-     ⍪changed¨urls
+     repo←('Dyalog/'/⍨~'/'∊⍵),url
+     commits←⍺↑get'https://',creds,'api.github.com/repos/',repo,'/commits'
+     urls←creds∘inject¨commits.url
+     ↑changed¨urls
  }
