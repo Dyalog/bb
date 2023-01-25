@@ -57,6 +57,6 @@ In general, you'll convert some HTML to XHTML and then search for and extract el
       'request failed' ⎕SIGNAL (0 200≢resp.(rc HttpStatus))/777 ⍝ check that it succeeded
       h ← resp.Data ⍝ grab the response data
       x ← xhtml.HTMLtoXHTML h ⍝ convert to XHTML
-      mytables ← x xhtml.Xsel x xhtml.Xfind '//table/class/results' ⍝ extract all the <table> elements with a class attribute containing "results" 
+      mytables ← x xhtml.Xsel x xhtml.Xfind '//table//class/results' ⍝ extract all the <table> elements with a class attribute containing "results"
 
 
