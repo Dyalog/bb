@@ -55,7 +55,7 @@
       }
 
       closes←⍸'>'=html
-      noclose←'<',¨'area ' 'base ' 'basefont ' 'br>' 'col ' 'frame ' 'hr ' 'hr>' 'img ' 'input ' 'isindex ' 'link ' 'meta ' 'param ' ⍝ elements with no closing tag
+      noclose←'<',¨'area ' 'base ' 'basefont ' 'br ' 'br>' 'col ' 'frame ' 'hr ' 'hr>' 'img ' 'input ' 'isindex ' 'link ' 'meta ' 'param ' ⍝ elements with no closing tag
       inds←closes[⍸∨⌿<\(⍸⊃∨/(noclose(⍷lco)¨⊂html))∘.<closes]
       html[inds[⍸'/'≠html[inds-1]]]←⊂'/>'
       html←∊html

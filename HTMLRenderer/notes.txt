@@ -1,0 +1,28 @@
+﻿HTMLRenderer examples:
+
+1) Canned MsgBox utility similar to ⎕WC MsgBox
+    mb←⎕NEW MsgBox ('Caption' 'Are you sure?' 'query')
+
+2) Canned InputForm utility similar to InputGrid
+    if←⎕NEW InputForm
+    if.Names←'first' 'last' 'dob'
+    if.Labels←'First:' 'Last:' 'DOB:'
+    if.Types←'text' 'text' 'date'
+    if.Required←0 1 1
+    ns←if.Run
+    ns.(first last dob)
+┌─────┬───────┬─────────┐
+│Drake│Mallard│1983 8 11│
+└─────┴───────┴─────────┘
+
+3) Using WC3 (Web Content Construction Collection)
+
+    ]load /Dyalog17/HTMLRenderer/WC3
+    ∇ MyApp arg
+[1] WC3.Init 'pathToMiServer' ⍝ or '' if ⎕WSID is in the MiServer path already
+[2] pg←⎕NEW WC3.Page ⍝ WC equivalent of a MiPage
+[3] 
+
+
+Notes:
+WC2 needs to bootstrap SALT in runtimes
