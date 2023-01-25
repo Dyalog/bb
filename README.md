@@ -7,20 +7,20 @@ This repository contains stuff I've tinkered with, some of it may be interesting
 
 ----------
 
-##`xhtml.dyalog` namespace
+## `xhtml.dyalog` namespace
 
 Contains utilities to:
 - convert HTML to XHTML which is subsequently able to be parsed by `⎕XML`
 - search and extract elements from the result of `⎕XML`
 
-###`HTMLtoXHTML`
+### `HTMLtoXHTML`
 `xhtml ← xhtml.HTMLtoXHTML html`
 `html` is a character vector containing HTML
 `xhtml` is a matrix form of the XHTML
 
 `HTMLtoXHTML` assumes that the HTML is reasonably formed (e.g. open tags have corresponding closing tags). It handles most, but probably not all, HTMLisms of some elements not requiring a closing tag.
 
-###`Xfind`
+### `Xfind`
 `boolvec ← xml xhtml.Xfind spec`
 `xml` is an XML matrix (could be XHTML, but doesn't have to be)
 `spec` is a delimited-string search specification (first character is the delimiter) in the form `/levels/elements/content/attribute/value` where:
@@ -42,13 +42,13 @@ Examples:
 
       xml xhtml.Xfind '/3+/th td/bloof' ⍝ find all level 3 or higher <th> or <td> elements containing 'bloof' 
 ```
-###`Xsel`
+### `Xsel`
 `elements ← xml Xsel boolvec`
 `xml` is an XML matrix (could be XHTML, but doesn't have to be)
 `boolvec` is a Boolean vector with as many elements as rows in `xml`
 `elements` is a nested vector of elements marked by `boolvec` and their descendants
 
-###Typical Use Case
+### Typical Use Case
 In general, you'll convert some HTML to XHTML and then search for and extract element of interest to you.  For example:
 
 ```
