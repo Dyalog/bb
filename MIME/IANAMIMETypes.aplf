@@ -1,0 +1,11 @@
+ r←IANAMIMETypes;h;z;mimes
+⍝ return MIME types from IANA registry
+ h←HttpCommand.New'get' 'https://www.iana.org/assignments/media-types/media-types.xml'
+ h.TranslateData←1
+ z←h.Run
+ :If 0 200≡z.(rc HttpStatus)
+     mimes←z.Data xhtml.Xsel z.Data xhtml.Xfind'//record/'
+     r←⊃,/{3::2 0⍴⊂'' ⋄ ⍵[⍵[;2]⍳'name' 'file';,3]}¨mimes
+ :Else
+     (⍕z)⎕SIGNAL 222
+ :EndIf

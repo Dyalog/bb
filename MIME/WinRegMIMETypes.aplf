@@ -1,0 +1,12 @@
+ r←WinRegMIMETypes;subkeys;subkey;nv;i
+ r←2 0⍴⊂''
+ subkeys←WinReg.GetAllSubKeyNames'HKCR\'
+ subkeys/⍨←'.'=⊃¨subkeys
+ :For subkey :In subkeys
+     :Trap 11
+         nv←WinReg.GetAllNamesAndValues'HKCR\',subkey
+         :If (≢nv)≥i←nv[;1]⍳⊂'Content Type'
+             r,←subkey((⊂i 2)⊃nv)
+         :EndIf
+     :EndTrap
+ :EndFor
