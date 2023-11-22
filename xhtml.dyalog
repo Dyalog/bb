@@ -2,13 +2,15 @@
 
     ⎕IO←⎕ML←1
 
-    ∇ r←HTMLtoXHTML html;lco;lc;beginsWith;last;fixAmpersand;fixAttribute;inScript;fixScript;quoteAttr;closes;inds;noclose;msg;pos;scriptInsert;next;fixComment;char;fixAttributeCharacter;makeEntity;fixBadTag
+    ∇ r←HTMLtoXHTML html;lco;lc;beginsWith;last;fixAmpersand;fixAttribute;inScript;fixScript;quoteAttr;closes;inds;noclose;msg;pos;scriptInsert;next;fixComment;char;fixAttributeCharacter;makeEntity;fixBadTag;fixMismatch;expect;lastpos;parsePos;endsWith;fixOrphan;fixImbalance
     ⍝ attempts to covert a character vector containing HTML to matrix form of XHTML
       lco←{(lc ⍺)⍺⍺(lc ⍵)}
       lc←0∘(819⌶)
       beginsWith←{⍵≡(≢⍵)↑⍺}
+      endsWith←{⍵≡(-≢⍵)↑⍺}
       last←{⍸⌽<\⌽⍵⍷⍺↑⍺⍺}
       next←{⍸<\⍵⍷⍺↓⍺⍺}
+      parsePos←{∨/'at end of text;'⍷⍺:⍵ ⋄ ⊃⊃(//)⎕VFI ⍺∩⎕D,' '}
       fixAmpersand←{
           ∊((⊂'&amp;')@(⍺(⍵ last)'&'))⍵
       }
@@ -34,7 +36,7 @@
           e←⍺+⌊/(⍺↓⍵)⍳' >'
           ∊((⊂'"'∘,)¨@(⍺,e))⍵
       }
-      fixComment←{   ⍝ '--' inside of comments are a no-no,so replace them with '==' 
+      fixComment←{   ⍝ '--' inside of comments are a no-no,so replace them with '=='
           t←+/∧\'-'=⍺↓⍵   ⍝ trailing -
           l←+/∧\'-'=⌽⍺↑⍵  ⍝ leading -
           '!'=⍵[⍺-l]:('='@((⍺-l-2)+⍳t+l-2))⍵ ⍝ preserve beginning of comment
@@ -42,8 +44,9 @@
           ('='@((⍺-l)+⍳t+l))⍵ ⍝ otherwise replace them all
       }
       fixAttributeCharacter←{
+          err←⊂↓'EM' 'EN' 'Message',⍪⎕DMX.(EM EN Message)
           pos char←⍺
-          char≠⍵[pos]:∘∘∘
+          char≠⍵[pos]:⎕SIGNAL err
           ∊((⊂makeEntity char)@pos)⍵
       }
       makeEntity←{
@@ -53,19 +56,45 @@
           '<'≠⍵[⍺-1]:∘∘∘ ⍝ expected '<' at this location
           ∊((⊂'&lt;')@(⍺-1))⍵
       }
-
+      fixMismatch←{
+          err←⊂↓'EM' 'EN' 'Message',⍪⎕DMX.(EM EN Message)
+          (pos expect)←⍺
+          '>'≠pos⊃⍵:⎕SIGNAL err
+          tag←{⍵↓⍨0⌈¯1+¯1↑⍸'<'=⍵}pos↑⍵
+          0=len←⊃'<\/\w*>|<\w*\/>'⎕S 1⊢tag:⎕SIGNAL err
+          ((pos-len)↑⍵),expect,(pos-len)↓⍵
+      }
+      fixImbalance←{
+          err←⊂↓'EM' 'EN' 'Message',⍪⎕DMX.(EM EN Message)
+          (pos expect)←⍺
+          pos≠≢⍵:⎕SIGNAL err
+          ⍵,expect
+      }
+      fixOrphan←{
+          err←⊂↓'EM' 'EN' 'Message',⍪⎕DMX.(EM EN Message)
+          tag←{⍵↓⍨0⌈¯1+¯1↑⍸'<'=⍵}pos↑⍵
+          0=len←⊃'<\/\w*>|<\w*\/>'⎕S 1⊢tag:⎕SIGNAL err
+          ((⍺-len)↑⍵),⍺↓⍵
+      }
+     
+      html~←⎕UCS 11 ⍝ remove vertical tab characters
+     
       closes←⍸'>'=html
       noclose←'<',¨'area ' 'base ' 'basefont ' 'br ' 'br>' 'col ' 'frame ' 'hr ' 'hr>' 'img ' 'input ' 'isindex ' 'link ' 'meta ' 'param ' ⍝ elements with no closing tag
       inds←closes[⍸∨⌿<\(⍸⊃∨/(noclose(⍷lco)¨⊂html))∘.<closes]
       html[inds[⍸'/'≠html[inds-1]]]←⊂'/>'
       html←∊html
+      pos←0
      Try:
+      lastpos←pos
       :Trap 11
           r←(⎕XML⍠('Markup' 'Preserve')('UnknownEntity' 'Preserve'))html
       :Else
           msg←⎕DMX.Message
-          pos←⊃⊃(//)⎕VFI msg∩⎕D,' '
-          :If ~0∊⍴scriptInsert←pos inScript html
+          pos←msg parsePos≢html
+          :If pos=lastpos ⍝ error in same position?
+              ∘∘∘
+          :ElseIf ~0∊⍴scriptInsert←pos inScript html
               html←scriptInsert fixScript html
               →Try
           :ElseIf msg beginsWith'Invalid entity reference'
@@ -86,6 +115,17 @@
               →Try
           :ElseIf msg beginsWith'Invalid tag name'
               html←pos fixBadTag html
+              →Try
+          :ElseIf msg endsWith'none expected'
+              html←pos fixOrphan html
+              →Try
+          :ElseIf msg beginsWith'Tag mismatch'
+              expect←⊃⊢/' '(≠⊆⊢)msg ⍝ expected tag
+              html←(pos expect)fixMismatch html
+              →Try
+          :ElseIf msg beginsWith'Tag imbalance'
+              expect←⊃⊢/' '(≠⊆⊢)msg ⍝ expected tag
+              html←(pos expect)fixImbalance html
               →Try
           :Else
               ∘∘∘ ⍝ unhandled exception
