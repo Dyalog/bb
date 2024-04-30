@@ -1,6 +1,6 @@
 ﻿:Namespace OpenAI
 ⍝ This class implements an interface to the OpenAI API
-⍝ Requires: HttpCommand
+⍝ Requires: HttpCommand v5.6 or later
 
     (⎕ML ⎕IO)←1
     APIKey←''                             ⍝ an API key is required to use the OpenAI API
@@ -28,12 +28,12 @@
                   :EndTrap
               :EndIf
           :EndIf
-          :If 1=5 6(×2⊥×⍤-)2↑2⊃'.'⎕VFI 2⊃HttpCommand.Version
-              msg←'HttpCommand version 5.6 or later is required'
-          :Else
-              (rc msg)←0 'Initialized'
-              Initialized←1
-          :EndIf
+      :EndIf
+      :If 1=5 6(×2⊥×⍤-)2↑2⊃'.'⎕VFI 2⊃HttpCommand.Version
+          msg←'HttpCommand version 5.6 or later is required'
+      :Else
+          (rc msg)←0 'Initialized'
+          Initialized←1
       :EndIf
     ∇
 
@@ -150,7 +150,7 @@
               :EndFor
           :Else
               args←,⊆args
-              r.(prompt OutFile style)←3↑args,(≢args)↓r.(prompt OutFile style)
+              r.(image prompt)←2↑args,(≢args)↓r.(image prompt)
           :EndIf
           r.API_Parameters←'image' 'prompt' 'mask' 'model' 'n' 'response_format' 'size' 'user'
         ∇
@@ -164,7 +164,7 @@
               :EndFor
           :Else
               args←,⊆args
-              r.(prompt OutFile style)←3↑args,(≢args)↓r.(prompt OutFile style)
+              r.(image n)←2↑args,(≢args)↓r.(image n)
           :EndIf
           r.API_Parameters←'image' 'model' 'n' 'response_format' 'size' 'user'
         ∇
@@ -182,8 +182,7 @@
           req.TranslateData←1
           req.OutFile←OutFile
           req.Params←MakeParams API_Parameters
-          Response←req.Run
-          r←Response.(rc HttpStatus)
+          r←Response←req.Run
         ∇
 
         ∇ Show;s;url;refs;ref;img
@@ -199,9 +198,9 @@
               img←{'<img src="data:image/png;base64,',⍵,'"/>'}
               :For ref :In refs
                   :If url
-                      Renderers,←⎕NEW'HTMLRenderer'(('URL'ref)('coord' 'pixel')('size'(⌈1.1×s)))
+                      Renderers,←⎕NEW'HTMLRenderer'(('URL'ref)('Size'(100 100)))
                   :Else
-                      Renderers,←⎕NEW'HTMLRenderer'(('HTML'(img ref))('coord' 'pixel')('size'(⌈1.1×s)))
+                      Renderers,←⎕NEW'HTMLRenderer'(('HTML'(img ref))('Size'(100 100)))
                   :EndIf
               :EndFor
           :Else
@@ -302,7 +301,7 @@
           r.API_Parameters←'file' 'model' 'prompt' 'response_format' 'tempurature'
         ∇
 
-        ∇ resp←Run;req;f
+        ∇ resp←Run;req;f;ext;outfile;flag
           :Access public
           req←MakeRequest endpoint
           :If (⊂endpoint)∊'audio/transcriptions' 'audio/translations'
@@ -311,11 +310,32 @@
               :If ~⎕NEXISTS f
                   ('File not found: "',f,'"')⎕SIGNAL 22
               :EndIf
+          :ElseIf endpoint≡'audio/speech'
+              :If ~0∊⍴OutFile ⍝ check file extension and adjust response_format if necessary
+                  (outfile flag)←2↑(⊆OutFile),¯1
+                  ext←1↓⊃⊢/⎕NPARTS outfile
+                  :If 0∊⍴ext
+                      outfile,←'.',response_format
+                      :If flag=¯1
+                          OutFile←outfile
+                      :Else
+                          OutFile←outfile flag
+                      :EndIf
+                  :Else
+                      ('Invalid audio file extension "',ext,'"')⎕SIGNAL 22/⍨~(⊂ext)∊'mp3' 'opus' 'aac' 'flac' 'wav' 'pcm'
+                      response_format←ext
+                  :EndIf
+              :EndIf
           :EndIf
           req.TranslateData←1
           req.OutFile←OutFile
           req.Params←MakeParams API_Parameters
           resp←Response←req.Run
+        ∇
+
+        ∇ r←Show
+          :Access public
+          r←⎕JSON⍠'Compact' 0⊢Response.Data
         ∇
 
     :endclass
