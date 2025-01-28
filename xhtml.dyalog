@@ -195,10 +195,27 @@
       }
 
       Xsel←{
-      ⍝ ⍺ - xhtml
+      ⍝ ⍺ - xml matrix
       ⍝ ⍵ - Boolean of selected nodes (result from Xfind)
       ⍝ ← - nodes+descendents
           {⍵⌿⍨∧\1,1↓⍵[;1]>⊃⍵[;1]}¨((1@(⍸⍵))(≢⍺)⍴0)⊂[1]⍺
       }
+
+    ∇ xml←repl(xml Xrepl)elements;mask;n;i;inds;rep;ind;elms
+    ⍝ xml      - xml matrix or string
+    ⍝ repl     - new xml (or string(s)) for elements
+    ⍝ elements - boolean marking the elements in xml (or string for Xfind)
+    ⍝ ←  - updated xml matrix
+      xml←⎕XML⍣(''=⍥⎕DR xml)⊢xml
+      elms←xml Xsel elements←xml Xfind⍣(~2|⎕DR elements)⊢elements
+      repl←⎕XML⍣(''=⍥⎕DR repl)⊢repl
+      repl←⊂⍣(2=≢⍴repl)⊢repl
+      ⎕SIGNAL 5/⍨(≢repl)(~∊)1,n←≢inds←⍸elements
+      repl←n/⍣(1=≢repl)⊢repl
+      mask←(≢xml)⍴1
+      mask[∊inds+∘⍳¨¯1+≢¨elms]←0
+      repl←repl{⍉(⍵-⍥⊃⍺)∘+@1⊢⍉⍺}¨xml[inds;1] 
+      xml←↑⊃,/↓¨mask/repl@inds⊢↓xml
+    ∇
 
 :EndNamespace
