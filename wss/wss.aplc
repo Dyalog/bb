@@ -1,0 +1,545 @@
+﻿:Class wss
+⍝ simple WebSocket server
+
+    (⎕IO ⎕ML)←1
+
+    ∇ r←Version
+      :Access public shared
+      r←'wss' '1.3.0' '2025-01-09'
+    ∇
+
+    :field public Port←22322               ⍝ this port will be connected
+    :field public LDRC←''                  ⍝ set by the server when Conga is initialized
+    :field public RootName←''              ⍝ Conga root name (we maintain unique names in case you run multiple servers)
+    :field public ServerName←''            ⍝ server name, overrides Conga's 'SRVnnnnnnnn'
+    :field public WaitTimeout←5000         ⍝ how long DRC.Wait will wait before timing out
+    :field public Handler←''               ⍝ name of the handler function, if any
+    :field public Conx←0 2⍴⊂''             ⍝ table of [;1] connection number, [;2] WebSocket security key
+    :field public HTMLFolder←''            ⍝ folder name containing HTML to be served
+    :field public AppFolder←''             ⍝ folder where application code and/or resources may reside
+    :field public CodeLocation←''          ⍝ where to look for application code (set in makeCommon, if not set by user)
+    :field public DefaultPage←'index.html' ⍝ name of default HTML page
+    :field public ShowHTMLRenderer←1       ⍝ open the HTMLRenderer interface?
+    :field public Aliases←0                ⍝ resource mapping - either a file name, or 2-column matrix of [;1] alias [;2] path
+    :field public Debug←0                  ⍝ 1 - turn event logging on
+
+⍝ event handlers - set to a function name to be called when the event happens
+    :field public OnWSUpgrade←''
+    :field public OnConnect←''
+    :field public OnWSReceive←''
+    :field public OnClose←''
+    :field public OnTimeout←''
+    :field public OnHTTPHeader←''
+
+
+    :field _stop←0
+    :field _mappings←0 2⍴⊂''               ⍝ resource mappings (set by CheckAliases)
+    :field _rootFolder←''                  ⍝ folder from which
+
+    if←⍴⍨
+    unless←↓⍨
+    check←0∘≠⊃
+    deb←{1↓¯1↓{⍵/⍨~'  '⍷⍵}' ',⍵,' '}
+
+    ∇ make
+      :Access public
+      :Implements constructor
+      makeCommon
+    ∇
+
+    ∇ make1 args
+    ⍝ args ←→ Port (for now)
+      :Access public
+      :Implements constructor
+      makeCommon
+      args←,⊆args
+      Port←1↑args,(≢args)↓Port
+    ∇
+
+    ∇ makeCommon
+      isWin←'W'=⊃3⊃'.'⎕WG'APLVersion'
+      :If 0∊⍴CodeLocation
+          :Trap 3 ⍝ INDEX ERROR
+              CodeLocation←4⊃⎕RSI
+          :Else
+              CodeLocation←#
+          :EndTrap
+      :EndIf
+    ∇
+
+    ∇ r←New arg
+      :Access public shared
+      :If 0∊⍴arg
+          r←##.⎕NEW ⎕THIS
+      :Else
+          r←##.⎕NEW ⎕THIS arg
+      :EndIf
+    ∇
+
+    ∇ (rc msg)←Start;r
+      :Access public
+      :If 0∊⍴HTMLFolder
+          HTMLFolder←⊃1 ⎕NPARTS 4⊃5179⌶⊃⊃⎕CLASS ⎕THIS
+      :EndIf
+      →End if check(rc msg)←CheckAliases
+      →End if check(rc msg)←CheckEventHandlers
+      →End if check(rc msg)←CheckConga
+      ⍝ HTTP options 5: Decode HTTP and auto-upgrade web sockets
+      :If 0≠⊃r←LDRC.Srv ServerName''Port'http'('Options' 5)
+          →0⊣(rc msg)←(⊃r)(1↓⍕1↓r)
+      :EndIf
+      _stop←0
+      ServerName←2⊃r
+      {Listen}&0
+      (rc msg)←0('Server "',ServerName,'" started on Port ',⍕Port)
+      StartClient
+     End:
+    ∇
+
+    ∇ (rc msg)←Stop
+      :Access public
+      :If _stop
+          Log'Server "',ServerName,'" is already stopped or stopping'
+      :Else
+          Log'Server "',ServerName,'" is stopping'
+          _stop←1
+          ⎕EX'hr' ⍝ close the client
+      :EndIf
+    ∇
+
+    ∇ r←Connection objname
+      r←⊃(//)⎕VFI 3↓2⊃'.'(≠⊆⊢)objname
+    ∇
+
+    ∇ r←Object conx
+      r←ServerName,'.CON',,'ZI8'⎕FMT conx
+    ∇
+
+    ∇ Listen;rc;obj;evt;data;wres;hdrs;conx;headers;httpver;url;method
+      :While ~_stop
+          (rc obj evt data)←4↑wres←LDRC.Wait ServerName WaitTimeout
+          :Select rc
+          :Case 0
+              :Select evt
+              :Case 'Error'
+                  ⎕←wres
+                  _stop←ServerName≡obj
+                  :If 0≠4⊃wres
+                      Log'Server: DRC.Wait reported error ',(⍕4⊃wres),' on ',(2⊃wres)
+                  :EndIf
+     
+              :Case 'Connect'
+                  :If 0≠evt RunHandler wres
+                      :Leave
+                  :EndIf
+     
+              :Case 'HTTPHeader'
+                  :If 0≠evt RunHandler wres
+                      :Leave
+                  :EndIf
+                  obj Serve data
+     
+              :Case 'WSUpgrade'
+                  :If 0≠evt RunHandler wres
+                      :Leave
+                  :EndIf
+                  hdrs←ParseHeaders data
+                  Conx⍪←obj hdrs
+     
+              :Case 'WSReceive'
+                  :If 0≠evt RunHandler wres
+                      :Leave
+                  :EndIf
+                  :If 0∊⍴Handler
+                      Log(Connection obj),' sent:'
+                      Log⊃data
+                  :Else
+                      (Connection obj)(⍎'##.',Handler)⊃data
+                  :EndIf
+     
+              :Case 'Close'
+                  :If 0≠evt RunHandler wres
+                      :Leave
+                  :EndIf
+     
+              :Case 'Timeout'
+                  :If 0≠evt RunHandler wres
+                      :Leave
+                  :EndIf
+              :EndSelect
+     
+          :Case 100 ⍝ timeout
+              :If 0≠'Timeout'RunHandler wres
+                  :Leave
+              :EndIf
+     
+          :Case 1010 ⍝ object not found
+              :If ~_stop
+                  Log'Server: Object "',ServerName,'" has been closed - shutting down'
+                  _stop←1
+              :EndIf
+          :Else
+              ⎕←wres
+              Log'Server: Unhandled Conga event:'
+              Log⍕wres
+          :EndSelect
+      :EndWhile
+      {}{0:: ⋄ LDRC.Close ⍵}ServerName
+      Log'Server stopped'
+    ∇
+
+    ∇ rc←event RunHandler wres;event;handler;fn
+    ⍝ Run Conga event handler if defined
+    ⍝ wres - rc obj event data
+      rc←0
+      :If 2|Debug
+      :AndIf 'timeout'≢⍥⎕C event
+          Log'Trace: '(2↑2↓wres)
+      :EndIf
+      :If 2=⌊⎕NC⊂handler←'On',event
+      :AndIf ~0∊⍴fn←⍎handler
+          :Trap 85
+              rc←0(85⌶)(⍕CodeLocation),'.',fn,' wres'
+          :EndTrap
+      :EndIf
+    ∇
+
+    ∇ r←URLDecode r;⎕IO;i;z;j;t;lens;fill;m
+      :Access public shared
+    ⍝ Decode a Percent Encoded string https://en.wikipedia.org/wiki/Percent-encoding
+      ⎕IO←0
+      ((r='+')/r)←' '
+      :If ~0∊⍴i←(r='%')/⍳⍴r
+      :AndIf ~0∊⍴i←(i≤¯2+⍴r)/i
+          z←r[j←i∘.+1 2]
+          t←'UTF-8'⎕UCS 16⊥⍉16|'0123456789ABCDEF0123456789abcdef'⍳z
+          lens←⊃∘⍴¨'UTF-8'∘⎕UCS¨t  ⍝ UTF-8 is variable length encoding
+          fill←i[¯1↓+\0,lens]
+          r[fill]←t
+          m←(⍴r)⍴1 ⋄ m[(,j),i~fill]←0
+          r←m/r
+      :EndIf
+    ∇
+
+    ∇ obj Serve data;method;url;httpver;headers;file;respheaders;rc;msg;status;payload;close;ind;i
+    ⍝ serve HTML content
+      (method url httpver headers)←data
+      respheaders←1 2⍴'Server'(deb⍕2↑Version)
+      respheaders⍪←'Date'(2⊃LDRC.GetProp'.' 'HttpDate')
+      url←(¯1+url⍳'?')↑url ⍝ Ignore queries
+      :If method≡⍥⎕C'get'
+          :If '/'≡⍥,url
+              url←DefaultPage
+          :EndIf
+          url↓⍨←+/∧\'/'=url ⍝ drop off leading '/'s
+          :If ~0∊⍴_mappings
+          :AndIf (≢_mappings)≥ind←_mappings[;1]⍳⊂url↑⍨i←¯1+url⍳'/'
+              file←((⊂ind 2)⊃_mappings),i↓url
+          :Else
+              file←HTMLFolder,url
+          :EndIf
+          file←URLDecode file
+          :If ⎕NEXISTS file
+              respheaders⍪←'content-type'(ContentType file)
+              status←(⊂httpver),'200' 'OK'
+              payload←''file ⍝'gzip'
+              close←0
+          :Else
+              respheaders⍪←'content-length' '0'
+              status←(⊂httpver),'404' 'NOT FOUND'
+              payload←''
+              close←1
+          :EndIf
+          (rc msg)←2↑LDRC.Send obj(status,respheaders payload)close
+      :Else
+          Log'Server: Unhandled HTTP method: ',method
+      :EndIf
+    ∇
+
+    ∇ (rc msg)←conx Send data
+      :Access public
+      (rc msg)←2↑LDRC.Send(Object conx)(data 1 1)
+    ∇
+
+    ∇ (rc msg)←CheckConga
+      :Access public
+      :If ''≡LDRC
+          :If 0=##.⎕NC'Conga'
+              'Conga'##.⎕CY'conga'
+              :If 9≠##.⎕NC'Conga'
+                  →0⊣(rc msg)←¯1 'Conga not found in ',⍕##
+              :EndIf
+          :End
+          RootName←'wss',⍕1+⌈/0,{2⊃⎕VFI ⍵}¨{⍵[1+'^wss\d*'⎕S{⍵.BlockNum}⊢⍵]}##.Conga.RootNames
+          LDRC←##.Conga.Init RootName
+          {}LDRC.SetProp'.' 'EventMode' 1
+      :EndIf
+      msg←'Conga not initialized'
+      →0 if check rc←{0::¯1 ⋄ ⊃LDRC.Describe'.'}''
+      msg←''
+    ∇
+
+    ∇ (rc msg)←CheckEventHandlers;handler;fn
+      (rc msg)←0 ''
+      :For handler :In 'OnWSUpgrade' 'OnConnect' 'OnWSReceive' 'OnClose' 'OnTimeout' 'OnHTTPHeader'
+          :If ~0∊⍴fn←⍎handler
+              :If 3≠⌊CodeLocation.⎕NC⊂fn
+                  msg,←handler,' event handler "',(⍕CodeLocation),'.',fn,'" is not a function',⎕UCS 13
+                  rc←¯1
+              :ElseIf 1≠11 CodeLocation.⎕ATX fn
+                  msg,←handler,' event handler "',(⍕CodeLocation),'.',fn,'" is not monadic',⎕UCS 13
+                  rc←¯1
+              :EndIf
+          :EndIf
+      :EndFor
+      msg←¯1↓msg
+    ∇
+
+    ∇ (rc msg)←CheckAliases;file;t;mappings;alias;path;ind
+      :Access public ⍝ for now
+      (rc msg)←0 ''
+      _mappings←0 2⍴⊂''
+      :If Aliases≢⍥,0
+          (rc msg)←¯1 'Invalid "Aliases" setting'
+          :Select |≡Aliases
+          :CaseList 0 1
+              file←∊1 ⎕NPARTS(_rootFolder/⍨isRelPath Aliases),Aliases
+              :If ~⎕NEXISTS file
+                  →0⊣msg←'"Aliases" file "',file,'" not found.'
+              :EndIf
+              :Trap 0
+                  t←0 ⎕JSON'Dialect' 'JSON5'⊢⊃⎕NGET file
+                  mappings←↑t.(alias path)
+              :Else
+                  →0⊣msg←'"Aliases" file "',file,'" does not contain alias/path settings.'
+              :EndTrap
+          :Case 2 ⍝ 'alias' 'path' or (n 2)⍴'alias' 'path' 'alias' 'path' ...
+              :If 1=≢⍴mappings←Aliases
+                  mappings←↑,⊂Aliases
+              :EndIf
+          :Case 3 ⍝ ('alias1' 'path1')('alias2' 'path2')
+              mappings←↑Aliases
+          :Else
+              →0
+          :EndSelect
+     
+          →0 if 2≠⊢/⍴mappings ⍝ not 2-column?
+     
+          :For (alias path) :In ↓mappings
+              path←∊1 ⎕NPARTS(_rootFolder/⍨isRelPath path),path
+              :If ~⎕NEXISTS path
+                  Log'Path "',path,'" not found for alias "',alias,'".'
+              :EndIf
+              ind←_mappings[;1]⍳⊂alias
+              _mappings↑⍨←ind⌈≢_mappings
+              _mappings[ind;]←alias path
+          :EndFor
+          (rc msg)←0 ''
+      :EndIf
+    ∇
+
+    ∇ SetRootFolder
+    ⍝ set the application "root" folder from which relative resources are defined
+      _rootFolder←∊1 ⎕NPARTS'/',⍨(1+0∊⍴AppFolder)⊃HTMLFolder AppFolder
+    ∇
+
+    ∇ r←isRelPath w
+    ⍝ is path w a relative path?
+      r←{{~'/\'∊⍨(⎕IO+2×isWin∧':'∊⍵)⊃⍵}3↑⍵}w
+    ∇
+
+    ∇ r←ParseHeaders data
+      :Access public
+      r←↑{⍵⊆⍨~<\⍵=':'}¨1↓data((~∊)⊆⊣)⎕UCS 13 10
+      r[;1]←⎕C r[;1]
+      r[;2]←dlb¨r[;2]
+    ∇
+
+    ∇ r←hdrs GetHeader name
+      :Access public
+      r←(hdrs[;1]⍳⊂⎕C,name)⊃hdrs[;2],⊂''
+    ∇
+
+    ∇ r←ContentType file;ext
+      :Select ext←⎕C⊃⊢/1 ⎕NPARTS file
+      :CaseList '.html' '.htm'
+          r←'text/html'
+      :CaseList '.jpeg' '.jpg'
+          r←'image/jpeg'
+      :Case '.css'
+          r←'text/css'
+      :Case '.js'
+          r←'text/javascript'
+      :Case '.svg'
+          r←'image/svg+xml'
+      :Else
+          r←''
+      :EndSelect
+    ∇
+
+
+    ∇ Log msg
+      ⎕←msg
+    ∇
+
+    dlb←{⍵↓⍨+/∧\' '=⍵}
+
+    :section Client
+    ∇ StartClient;html
+      :Access public
+      →ShowHTMLRenderer↓0
+     StartHTML:→EndHTML
+     ⍝  <!DOCTYPE html>
+     ⍝  <html>
+     ⍝  <head>
+     ⍝  <meta charset="utf-8" />
+     ⍝  <title>WebSocket Client (⌹)</title>
+     ⍝  <script>
+     ⍝
+     ⍝  var wsroot = "ws://localhost:⌹/";
+     ⍝  var ws1;
+     ⍝
+     ⍝  function init()
+     ⍝  {
+     ⍝    output = document.getElementById("output");
+     ⍝    instructions = document.getElementById("instructions");
+     ⍝    doOpen(wsroot);
+     ⍝  }
+     ⍝
+     ⍝  function doOpen(root){
+     ⍝    ws1 = new WebSocket(root);
+     ⍝    ws1.onopen = function(evt) { onOpen(evt) };
+     ⍝    ws1.onclose = function(evt) { onClose(evt) };
+     ⍝    ws1.onmessage = function(evt) { onMessage(evt) };
+     ⍝    ws1.onerror = function(evt) { onError(evt) };
+     ⍝  }
+     ⍝
+     ⍝  function doRecycle(){
+     ⍝    try {
+     ⍝      doClose();
+     ⍝    }
+     ⍝    catch(err) {
+     ⍝      writeToScreen(err.message);
+     ⍝    }
+     ⍝    doOpen(wsroot);
+     ⍝  }
+     ⍝
+     ⍝  function onOpen(evt)
+     ⍝  {
+     ⍝    writeToScreen("Opening websocket");
+     ⍝  }
+     ⍝
+     ⍝  function onClose(evt)
+     ⍝  {
+     ⍝    writeToScreen("Websocket closed");
+     ⍝  }
+     ⍝
+     ⍝  function doClose()
+     ⍝  {
+     ⍝    writeToScreen("Closing websocket");
+     ⍝    ws1.close(1000, "Bye Bye");
+     ⍝  }
+     ⍝
+     ⍝  function onMessage(evt)
+     ⍝  {
+     ⍝    writeToScreen('<span style="color: blue;">Received: </span>' + evt.data);
+     ⍝  }
+     ⍝
+     ⍝  function onError(evt)
+     ⍝  {
+     ⍝    writeToScreen('<span style="color: red;">ERROR: </span>' + evt.data);
+     ⍝  }
+     ⍝
+     ⍝  function doSend(message)
+     ⍝  {
+     ⍝    if (ws1===undefined){
+     ⍝      alert("Open the WebSocket first please");
+     ⍝    }
+     ⍝    else {
+     ⍝      ws1.send(message);
+     ⍝      writeToScreen('<span style="color: green;">Sent: </span>' + message);
+     ⍝    }
+     ⍝  }
+     ⍝
+     ⍝  function writeToScreen(message){
+     ⍝    var pre = document.createElement("div");
+     ⍝    pre.innerHTML = now() + " " +message;
+     ⍝    output.appendChild(pre);
+     ⍝    pre.scrollIntoView();
+     ⍝  }
+     ⍝
+     ⍝  function sendChar()
+     ⍝  {
+     ⍝    var msg = document.getElementById("inp").value;
+     ⍝    doSend(msg);
+     ⍝  }
+     ⍝
+     ⍝  toggle = () => {
+     ⍝    instructions.style.display = (instructions.style.display !=="none") ? "none" : "block";
+     ⍝    output.style.display = (output.style.display ==="none") ? "block" : "none";
+     ⍝  }
+     ⍝
+     ⍝  now = () =>{
+     ⍝    var d = new Date();
+     ⍝    return d.getUTCFullYear()+'-'+zpad(2,1+d.getUTCMonth())+'-'+zpad(2,d.getUTCDate())+' '+zpad(2,d.getUTCHours())+':'+zpad(2,d.getUTCMinutes())+':'+zpad(2,d.getUTCSeconds())+'.'+zpad(3,d.getUTCMilliseconds());
+     ⍝  }
+     ⍝
+     ⍝  zpad = (n,str) =>{ return ("0".repeat(n)+str).substr(-n,n) }
+     ⍝
+     ⍝  // window.addEventListener("load", init, false);
+     ⍝
+     ⍝  </script>
+     ⍝  <style>
+     ⍝  body,html{padding:0px 10px;margin:0;}
+     ⍝  #outer{display:flex;flex-direction:column;height:95vh;}
+     ⍝  .div{padding:2px 10px;border:solid 1px;margin-top:5px;}
+     ⍝  #output{flex:1;overflow:auto;min-height:0px;}
+     ⍝  .lbutt{margin-right:5px;}
+     ⍝  .rbutt{float:right;margin-right:5px;}
+     ⍝  a{margin-right:5px;}
+     ⍝  </style>
+     ⍝  </head>
+     ⍝
+     ⍝  <body>
+     ⍝  <div id="outer">
+     ⍝  <h2>WebSocket Client</h2>
+     ⍝
+     ⍝  <div>
+     ⍝  <button class='lbutt' type="button" onclick="doOpen(wsroot)">Open</button>
+     ⍝  <button class='lbutt' type="button" onclick="sendChar()">Send</button>
+     ⍝  <button class='lbutt' type="button" onclick="doClose()">Close</button>
+     ⍝  <button class='rbutt' type="button" onclick="output.innerHTML='';">Clear Log</button>&nbsp;&nbsp;
+     ⍝  <button class='rbutt' type="button" onclick="toggle('instructions')">Toggle Instructions</button>&nbsp;&nbsp;
+     ⍝  </div>
+     ⍝  <div><input type="text" style="width:100%;" id="inp"/></div>
+     ⍝  <div id="instructions" class="div" style="display:none;">
+     ⍝  <pre>
+     ⍝
+     ⍝  Click "Open" to create the WebSocket.
+     ⍝  To send to APL, type something in the input area and click "Send"
+     ⍝  To send from APL, use the Send method
+     ⍝       conx instance.Send 'message'
+     ⍝  Where:
+     ⍝     conx is the integer connection number
+     ⍝     message is the character payload to send
+     ⍝
+     ⍝  </pre>
+     ⍝  </div>
+     ⍝
+     ⍝  <div id="output" class="flex div"></div>
+     ⍝  </div>
+     ⍝  </body>
+     ⍝  </html>
+     EndHTML:
+      html←(1↓∊(⎕UCS 13),¨{⍵↓⍨⍵⍳'⍝'}¨StartHTML↓EndHTML↑↓(180⌶)⊃⎕XSI)
+      html←∊(⊂⍕Port)@(=∘'⌹')⊢html
+      :Trap 10 ⍝ LIMIT ERROR
+          'hr'⎕WC'HTMLRenderer'('HTML'html)
+      :Else
+          ⎕←'Unable to create HTMLRenderer to run debug client'
+      :EndTrap
+    ∇
+    :endsection
+
+
+:EndClass

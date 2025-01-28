@@ -1,4 +1,4 @@
-﻿:Namespace OpenAI
+:Namespace OpenAI
 ⍝ This class implements an interface to the OpenAI API
 ⍝ Requires: HttpCommand v5.6 or later
 
@@ -452,4 +452,93 @@
         ∇
 
     :endclass
+
+    :class Files
+
+        :include U
+
+        :field public file←''
+        :field public purpose←''            ⍝ one of 'assistants' 'fine-tune' 'vision' or 'batch'
+
+        :field public OutFile←''            ⍝ filename to write image to (a la HttpCommand)
+        :field public Response←''
+
+        :field public API_Parameters
+        :field endpoint                     ⍝ which endpoint?  create, edit, or vary?
+
+        ∇ make
+          :Access public
+          :Implements constructor
+          makeCommon
+        ∇
+
+        ∇ make1 args
+          :Access public
+          :Implements constructor
+          makeCommon
+          endpoint←args
+        ∇
+
+        ∇ makeCommon
+          parent←(⊃⊃⎕CLASS ⎕THIS).##
+          :If ~parent.Initialized
+              parent.Initialize
+          :EndIf
+        ∇
+
+        ∇ r←Upload args;name
+          :Access public shared
+          r←⎕NEW ⎕THIS'upload'
+          :If 9.1={⎕NC⊂,'⍵'}args ⍝ namespace?
+              :For name :In args.⎕NL ¯2
+                  r⍎name,'←args,',name
+              :EndFor
+          :Else
+              args←,⊆args
+              r.(purpose file)←2↑args,(≢args)↓r.(purpose file)
+          :EndIf
+          r.API_Parameters←'purpose' 'file'
+        ∇
+
+        ∇ r←Retrieve args
+        ∇
+
+        ∇ r←List
+        ∇
+
+        ∇ r←Delete args
+        ∇
+
+        ∇ r←RetrieveContent args
+        ∇
+
+        ∇ resp←Run;req;f;ext;outfile;flag
+          :Access public
+          req←MakeRequest endpoint 
+          req.URL←'files'
+          :Select endpoint
+          :Case 'upload'
+              req.Command←'post'                    
+              req.ContentType←'multipart/form-data'
+              file←'@',f←file~'@'
+              :If ~⎕NEXISTS f
+                  ('File not found: "',f,'"')⎕SIGNAL 22
+              :EndIf      
+          :Case 'retrieve'
+          :Case 'delete'
+          :Case 'list'
+          :Case 'retrieveContent'
+          :EndSelect
+          req.TranslateData←1
+          req.Params←MakeParams API_Parameters
+          resp←Response←req.Run
+        ∇
+
+        ∇ r←Show
+          :Access public
+          r←⎕JSON⍠'Compact' 0⊢Response.Data
+        ∇
+
+    :endclass
+
 :EndNamespace

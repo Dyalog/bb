@@ -30,7 +30,7 @@
       ⍝ p is the length of the "drawing stick"
       size←2⍴600 ⍝ drawing area size
       origin←⌊0.5×size
-      f←⎕NEW'Form'(('Coord' 'ScaledPixel')('Size'(size+30 0))('Caption' 'APL Spirograph')('AutoConf' 0)('Sizeable' 0))
+      f←⎕NEW'Form'(('Coord' 'ScaledPixel')('Size'(size+30 0))('Caption' 'APL Spirograph')('AutoConf' 0)('Sizeable' 0)('BCol'⍬))
       f.edit←{('Posn'(##.size[1],⍺))('Size'(20 40))('FieldType' 'Numeric')('Value'⍵)}
       f.label←{('Posn'(##.size[1],⍺))('Size'(20 40))('Caption'(⍵,': '))('Justify' 'right')}
       f.(R←⎕NEW'Edit'(75 edit 99))
@@ -41,6 +41,7 @@
       f.(l3←⎕NEW'Label'(300 label'Stick'))
       f.(cb←⎕NEW'Button'(('Posn'(##.size[1],400))('Caption' 'Animate?')('Style' 'check')('State' 0)))
       f.(b←⎕NEW'Button'(('Posn'(##.size[1],475))('Caption' 'Draw')('Style' 'push')))
+      f.(b1←⎕NEW'Button'(('Posn'(##.size[1].550))('Caption' 'Stop')('Style' 'push')))
       f.(pts←⎕NEW'Poly'(,⊂'Points'(0 2⍴0)))
       f.(R r p).onChange←1
       f.(CR←⎕NEW'Circle'(('Points'(0 0))('Radius' 0)))
@@ -98,7 +99,7 @@
       min←⌊⌿points
       size←⌈(⌈⌿points)-min
       offset←0-min
-      f←⎕NEW'Form'(('Coord' 'Pixel')('Size'size)('Caption' 'APL Spirograph')('AutoConf' 0)('Sizeable' 0))
+      f←⎕NEW'Form'(('Coord' 'Pixel')('Size'size)('Caption' 'APL Spirograph')('AutoConf' 0)('Sizeable' 0)('BCol'⍬))
       f.(pts←⎕NEW'Poly'(,⊂'Points'(0 2⍴0)))
       f.pts.Points←offset+[2]points
       f.(onKeyPress onClick)←1

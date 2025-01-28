@@ -1,11 +1,20 @@
- r←IANAMIMETypes;h;z;mimes
+ r←IANAMIMETypes;h;z;mimes;registries;registry;title
 ⍝ return MIME types from IANA registry
- h←HttpCommand.New'get' 'https://www.iana.org/assignments/media-types/media-types.xml'
- h.TranslateData←1
- z←h.Run
- :If 0 200≡z.(rc HttpStatus)
-     mimes←z.Data xhtml.Xsel z.Data xhtml.Xfind'//record/'
-     r←⊃,/{3::2 0⍴⊂'' ⋄ ⍵[⍵[;2]⍳'name' 'file';,3]}¨mimes
+⍝ r is a 2-row matrix where:
+⍝  [1;] file extensions (called "name" in the registry)
+⍝  [2;] MIME type - the "content-type" for an HTTP request (called "file" in the registry)
+ h←HttpCommand.New'get'  ⍝ create a new HTTP GET request
+ h.URL←'https://www.iana.org/assignments/media-types/media-types.xml'
+ h.TranslateData←1       ⍝ set to automatically translate XML payload to APL form
+ z←h.Run                 ⍝ send the request
+ :If 0 200≡z.(rc HttpStatus) ⍝ did it succeed?
+     registries←z.Data xhtml.Xsel z.Data xhtml.Xfind'/1/registry/'
+     :For registry :In registries
+         title←⊃registry[registry[;2]⍳⊂'title';3]
+         ∘∘∘
+         mimes←registry xhtml.Xsel registry xhtml.Xfind'//record/' ⍝ select the MIME type records
+         r←⊃,/{3::2 0⍴⊂'' ⋄ ⍵[⍵[;2]⍳'name' 'file';,3]}¨mimes   ⍝ extract the extension and Content-Type from each record
+     :EndFor
  :Else
-     (⍕z)⎕SIGNAL 222
+     (⍕z)⎕SIGNAL 222     ⍝ signal an error if the request failed
  :EndIf

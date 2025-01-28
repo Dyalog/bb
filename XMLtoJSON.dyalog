@@ -1,11 +1,12 @@
-﻿ json←{jlev}XMLtoJSON xml;x;level;mask;chunk;name;data;type;isArray;lastName;inds;t;single;nextlev;hasData;hasKids;isElement;siblings
+﻿ json←{jlev}XMLtoJSON xml;x;level;mask;siblings;inds;chunk;name;data;hasData;hasKids;isElement;isArray;⎕IO;⎕ML
  ⍝ convert XML to JSON
  ⍝ xml is a character vector of XML
  ⍝ json is a charcter vector of JSON representation of the data in XML
  ⍝ json← XMLtoJSON xml     ⍝ will convert elements that look like scalar number to numeric
  ⍝ json← ¯1 XMLtoJSON xml  ⍝ will suppress numeric conversion
 
- (hasData hasKids isElement)←6 7 8 ⍝ column references in XML
+⍝ (hasData hasKids isElement)←6 7 8 ⍝ column references in XML
+ ⎕IO←⎕ML←1
 
  :If 0=⎕NC'jlev'                                ⍝ initial call?
  :OrIf jlev=¯1
@@ -27,14 +28,25 @@
      mask←xml[;1]=level
      json←0 4⍴0 '' '' 0                         ⍝ initialize this chunk's result
      siblings←mask/xml[;2]                      ⍝ sibling names
-     inds←siblings{⊆⍵}⌸⍸mask
+     inds←siblings{⊆⍵}⌸⍸mask                    ⍝ gather indices of matching sibling names
      inds/⍨←1<≢¨inds                            ⍝ note same-named siblings (these will be arrays)
      xml[⊃¨inds;5]←1                            ⍝ mark first name of array
      xml[∊1↓¨inds;5]←2                          ⍝ mark subsequent elements of array
      :For chunk :In mask⊂[1]xml                 ⍝ for each group
-         (name data)←chunk[1;2 3]
-         single←0=+/nextlev←chunk[;1]=1+level
-         :Select t←(⊂1 6)⊃chunk
+         (name data isArray hasData hasKids isElement)←chunk[1;2 3 5 6 7 8]
+         :If isElement
+             :If ~hasData
+                 json⍪←jlev name'' 1
+             :Else ⍝ has data
+                 ∘∘∘
+             :EndIf
+         :Else
+             ∘∘∘
+         :EndIf
+         json⍪←jlev XMLtoJSON 1↓chunk
+         →0
+         single←0=+/nextlev←chunk[;1]=1+level   ⍝ does it have siblings?
+         :Select t←(⊂1 6)⊃chunk                 ⍝
          :Case 0
              type←⊃single↓(2-2|(⊂1 5)⊃chunk),type
              json⍪←jlev name data type
