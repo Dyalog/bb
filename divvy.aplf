@@ -1,0 +1,4 @@
+ divvy←{
+ ⍝ distribute ⍺ items amongst ⍵ recipients
+     ⍺{1∘+@((⍺-+/⍵)?≢⍵)⊢⍵}⍵/⌊⍺÷⍵
+ }

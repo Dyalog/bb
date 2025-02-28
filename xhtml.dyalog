@@ -79,6 +79,7 @@
      
       html~←⎕UCS 11 ⍝ remove vertical tab characters
      
+      html←'<\/br>'⎕R'<br/>'⊢html ⍝ fix typo for <br/>
       closes←⍸'>'=html
       noclose←'<',¨'area ' 'base ' 'basefont ' 'br ' 'br>' 'col ' 'frame ' 'hr ' 'hr>' 'img ' 'input ' 'isindex ' 'link ' 'meta ' 'param ' ⍝ elements with no closing tag
       inds←closes[⍸∨⌿<\(⍸⊃∨/(noclose(⍷lco)¨⊂html))∘.<closes]
@@ -214,8 +215,23 @@
       repl←n/⍣(1=≢repl)⊢repl
       mask←(≢xml)⍴1
       mask[∊inds+∘⍳¨¯1+≢¨elms]←0
-      repl←repl{⍉(⍵-⍥⊃⍺)∘+@1⊢⍉⍺}¨xml[inds;1] 
+      repl←repl{⍉(⍵-⍥⊃⍺)∘+@1⊢⍉⍺}¨xml[inds;1]
       xml←↑⊃,/↓¨mask/repl@inds⊢↓xml
     ∇
+
+      Xattr←{
+     ⍝ ⍺ - xml matrix/matrices
+     ⍝ ⍵ - attribute name to search for
+     ⍝ ← - values (if any) for that attribute
+          4=|≡⍺:⍺ ∇¨⊂⍵
+          ⍵{(⍵[;2],⊂'')[⍵[;1]⍳⊂⍺]}↑⊃,/↓¨⍺[;4]
+      }
+
+      Xattrval←{
+      ⍝ ⍺ - xml matrix
+      ⍝ ⍵ - Xfind selection with attribute name populated. e.g. '/2/a//href' or just '////src'
+      ⍝ ← - vector of vectors of matching attribute values
+          ∪⊃,/(⍺ Xsel ⍺ Xfind ⍵)Xattr 1↓4⊃(⊢⊂⍨⊢=⊃)⍵
+      }
 
 :EndNamespace
